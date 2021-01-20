@@ -20,7 +20,7 @@ summary(log_reg1)
 
 ## 1b: Plotting the polynomial model
 ggplot(data = titanic1, aes(x = Age, y = Survived)) +
-  geom_point() +
+  geom_point(alpha = 0.4) +
   geom_smooth(
     method = "glm",
     formula = y ~ poly(x,2, raw = T),
@@ -33,14 +33,17 @@ ggplot(data = titanic1, aes(x = Age, y = Survived)) +
 model2 <- Survived ~ Fare
 log_reg2 <- glm(model2, family = "binomial", data = titanic)
 
-ggplot(data = titanic, aes(x = Fare, y = Survived)) +
-  geom_point() +
+plot1c <- ggplot(data = titanic, aes(x = Fare, y = Survived)) +
+  geom_point(alpha = 0.3) +
   geom_smooth(
     method = "glm",
     formula = y ~ x,
     method.args=list(family="binomial"),
     se = F
   )
+
+plot1c
+# TODO: Labeling
 
 ## 1d: bootstrap
 
@@ -93,16 +96,10 @@ conf_plot <- as.data.frame(cbind(fare_poss, conf))
 colnames(conf_plot) <- c("Fare", "Lower", "Upper")
 
 # we plot the confidence intervals in the new plots
-ggplot(data = titanic, aes(x = Fare, y = Survived)) +
-  geom_point() +
-  geom_smooth(
-    method = "glm",
-    formula = y ~ x,
-    method.args=list(family="binomial"),
-    se = F
-  ) +
+plot1c +
   geom_line(data = conf_plot, aes(x = Fare, y = Lower), color = "firebrick1") +
   geom_line(data = conf_plot, aes(x = Fare, y = Upper), color = "firebrick1")
+# TODO: Labeling
 
 # optional: Compare with built-in se estimate of geom_smooth function            
 ggplot(data = titanic, aes(x = Fare, y = Survived)) +
@@ -118,4 +115,18 @@ ggplot(data = titanic, aes(x = Fare, y = Survived)) +
 # have a look at the value:
 filter(conf_plot, Fare == 100)
 
+# Assuming our model does indeed capture the true data-generating process,
+# with a probability of 95%, the true (population) probability of having survived the sinking of the titanic,
+# conditional on having paid a fare of 100 dollars, lies between ~upper~ and ~lower~
+
 ### Problem 2: Probit Model ###
+
+titanic <- read.dta("titanic.dta")
+str(titanic)
+summary(titanic)
+
+
+model3 <- survived ~ class + age + sex
+
+prob_reg <- glm(model3, family = binomial(link = "probit"), data = titanic)
+summary(prob_reg)
