@@ -12,15 +12,15 @@ titanic <- read.csv("titanic_train_data.csv", sep = ",", header = T)
 # For our formula model, we want to use the poly function and therefore 
 # remove observations with NAs for Age
 titanic1 <- filter(titanic, !is.na(Age))
-model1 <- Survived ~ poly(Age, 2, raw = T)
+lm1 <- Survived ~ poly(Age, 2, raw = T)
 
 # Estimating the model
-log_reg1 <- glm(model1, family = "binomial", data = titanic1)
+log_reg1 <- glm(lm1, family = "binomial", data = titanic1)
 summary(log_reg1)
 
 ## 1b: Plotting the polynomial model
 ggplot(data = titanic1, aes(x = Age, y = Survived)) +
-  geom_point(alpha = 0.4) +
+  geom_point(alpha = 0.3) +
   geom_smooth(
     method = "glm",
     formula = y ~ poly(x,2, raw = T),
@@ -30,8 +30,9 @@ ggplot(data = titanic1, aes(x = Age, y = Survived)) +
 # TODO: LABELING
 
 ## 1c: Univariate Logit Model & Plotting
-model2 <- Survived ~ Fare
-log_reg2 <- glm(model2, family = "binomial", data = titanic)
+lm2 <- Survived ~ Fare
+log_reg2 <- glm(lm2, family = "binomial", data = titanic)
+summary(log_reg2)
 
 plot1c <- ggplot(data = titanic, aes(x = Fare, y = Survived)) +
   geom_point(alpha = 0.3) +
@@ -44,6 +45,24 @@ plot1c <- ggplot(data = titanic, aes(x = Fare, y = Survived)) +
 
 plot1c
 # TODO: Labeling
+
+# We notice some outliers (with a fare value of >500) and create a second data frame without them
+filter(titanic, Fare > 500)
+titanic_no <- filter(titanic, Fare < 500)
+
+log_reg2_no <- glm(lm2, family = "binomial", data = titanic_no)
+summary(log_reg2_no)
+
+plot1c_no <- ggplot(data = titanic_no, aes(x = Fare, y = Survived)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(
+    method = "glm",
+    formula = y ~ x,
+    method.args=list(family="binomial"),
+    se = F
+  )
+
+plot1c_no
 
 ## 1d: bootstrap
 
@@ -62,7 +81,7 @@ for (i in 1:reps) {
   boot_sample <- sample(obs, obs, replace = T)
   boot_observations <- titanic[boot_sample, ]
   # We do the logistic regression on the bootstrap observations
-  boot_reg <- glm(model2, family = "binomial", data = boot_observations)
+  boot_reg <- glm(lm2, family = "binomial", data = boot_observations)
   # store the coefficients of the bootstrapped regression
   boot_coeffs[i, ] <- boot_reg$coefficients
 }
@@ -70,12 +89,13 @@ for (i in 1:reps) {
 # create a vector of all possible fare prices in the range of the given fare prices
 fare_poss = seq(min(titanic$Fare), max(titanic$Fare), by = 0.1)
 # create a matrix and append a column of 1s for multiplication further on
-fare_poss_mat <- cbind(rep(1, length(fare_poss)), fare_poss)
+fare_poss_mat <- cbind(rep(1, length(fare_poss)), 
+                       fare_poss)
 
 # We calculate the linear prediction values for all possible fare values
 # in all replications: beta_0 + beta_1 * Fare
-# each column represents a value for Fare, so we append these as the column names
 lin_pred <- boot_coeffs %*% t(fare_poss_mat)
+# each column represents a value for Fare, so we append these as the column names
 colnames(lin_pred) <- as.character(fare_poss)
 # the logistic model function: pdf_logistic(lin_pred)
 log_pred <- plogis(lin_pred)
@@ -84,16 +104,15 @@ log_pred <- plogis(lin_pred)
 # for all values of Fare, i.e. for all columns of our log_pred matrix.
 # To store the value, we create a matrix where each row represents the two
 # quantiles for each given value
-conf <- matrix(0, nrow = ncol(log_pred), ncol = 2)
+conf <- apply(X = log_pred, MARGIN = 2, FUN = quantile, probs = c(.025, .975))
+conf <- t(conf)
 
-for (i in 1:ncol(log_pred)) {
-  conf[i,] <- quantile(log_pred[,i], probs = c(.025, .975))
-}  
 
 # for plotting purposes, we create a new data frame with the value for Fare
 # and the lower and upper bound of the confidence intervals
 conf_plot <- as.data.frame(cbind(fare_poss, conf))
 colnames(conf_plot) <- c("Fare", "Lower", "Upper")
+
 
 # we plot the confidence intervals in the new plots
 plot1c +
@@ -115,18 +134,38 @@ ggplot(data = titanic, aes(x = Fare, y = Survived)) +
 # have a look at the value:
 filter(conf_plot, Fare == 100)
 
-# Assuming our model does indeed capture the true data-generating process,
+# Assuming our model does depict the true data-generating process,
 # with a probability of 95%, the true (population) probability of having survived the sinking of the titanic,
 # conditional on having paid a fare of 100 dollars, lies between ~upper~ and ~lower~
 
+
 ### Problem 2: Probit Model ###
 
-titanic <- read.dta("titanic.dta")
-str(titanic)
-summary(titanic)
+titanic2 <- read.dta("titanic.dta")
+str(titanic2)
 
 
-model3 <- survived ~ class + age + sex
+lm3 <- survived ~ class + age + sex
 
-prob_reg <- glm(model3, family = binomial(link = "probit"), data = titanic)
+prob_reg <- glm(lm3, family = binomial(link = "probit"), data = titanic2)
 summary(prob_reg)
+
+# the probability of survival "decreases when the person becomes a man" - conforms to expectation ("children and women first")
+
+
+## 2b
+# ML estimation for betas
+# Mean of X values - how for nominal data
+# normalpdf(linear index) * beta_sexman
+
+# see felix' answer, but: it's not on marginal change but discrete (or any) change
+
+# no, assuming binarity of sex (which the data does) there is no infinitesimally small change in sex, only a discrete one
+
+## 2c
+# I think: turn nominal value (4 possible values: 3classes+crew) into binary (1st class vs not 1st class)
+
+## 2d
+# I think: differences in MPE_sexman(class = 1st class), MPE_sexman(class = 2ndclass), MPE_sexman(class = 3rdclass),
+# MPE_sexman(class = crew) ~ how to test the hypothesis? See Wooldridge 15.5.51 S. 570
+# h0: MPE_sexman_crew = MPE_sexman_class3 = MPE_sexman_class4 = MPE_sexman_class5 = MPE_sexman
