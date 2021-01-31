@@ -263,7 +263,7 @@ summary(Probit_Model_Estimate_Interact )
 #output latex table
 xtable(summary(Probit_Model_Estimate_Interact ))
 
-#get log likelihoods from restricted and unrestriced models:
+#get log likelihoods from restricted and unrestricted models:
 
 # log likelihood from model in b (restricted)
 Log_Likelihood_Restricted = logLik(Probit_Model_Estimate)
